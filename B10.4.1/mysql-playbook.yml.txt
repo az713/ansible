@@ -1,0 +1,54 @@
+- hosts: servers
+  become: true
+  gather_facts: false
+  vars:
+    mysql_root_password: 'secure-root-pw'
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Run the equivalent of "apt update" as a separate step
+      apt:
+        update_cache: yes
+
+    - name: Installing Mysql and dependencies
+      apt:
+        pkg:
+          - mysql-server
+          - mysql-client
+          - python3-mysqldb
+          - libmysqlclient-dev
+          - python3-pymysql
+          - gcc
+        state: latest
+        update_cache: true
+
+    - name: Install Required pip modules
+      pip:
+        name: PyMySQL
+        state: present
+
+    - name: Ensure mysql service is running
+      ansible.builtin.service:
+        name: mysql
+        state: restarted
+        enabled: yes
+
+    - name: Sets the root password
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Removes all anonymous user accounts
+      mysql_user:
+        name: ''
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Removes the MySQL test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
